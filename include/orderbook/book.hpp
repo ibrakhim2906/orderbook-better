@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <optional>
 #include <orderbook/types.hpp>
 
 namespace orderbook {
@@ -13,10 +14,15 @@ namespace orderbook {
     public:
         void apply(const Command& command, std::vector<Fill>& out);
 
+        std::optional<Price> bestBid() const;
+        std::optional<Price> bestAsk() const;
+        Quantity quantityAt(Side side, Price price) const;
+        std::size_t liveOrderCount() const;
+
     private:
         struct Level {
             Price price;
-            Quantity quantity;
+            Quantity totalQuantity;
             OrderPoolIndex head;
             OrderPoolIndex tail;
         };
@@ -26,7 +32,9 @@ namespace orderbook {
 
         std::unordered_map<OrderId, OrderPoolIndex> byId_;
 
-        std::map<Price, LevelIndex, std::greater<Price>> bids_;
+        std::map<Price, LevelIndex, std::greater<>> bids_;
         std::map<Price, LevelIndex> asks_;
+
+        LevelIndex findOrCreateLevel(Side side, Price price);
     };
 }
