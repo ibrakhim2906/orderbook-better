@@ -1,0 +1,10 @@
+Checks: >
+  -*,
+  performance-*,
+  bugprone-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  readability-identifier-naming
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'

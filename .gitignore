@@ -1,0 +1,12 @@
+build-dev/
+build-release/
+build-asan/
+build-tsan/
+cmake-build-*/
+vcpkg_installed/
+.cache/
+.idea/
+compile_commands.json
+data/
+*.o
+*.out
