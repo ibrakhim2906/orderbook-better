@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # run.sh [test|bench|all]   default: test
+
+JOBS=$(nproc)
+
+export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1"
+export UBSAN_OPTIONS="print_stacktrace=1"
+export TSAN_OPTIONS="halt_on_error=1"
+
 set -euo pipefail
 cd "$(dirname "$0")"
 JOBS=$(nproc)

@@ -8,5 +8,7 @@ vcpkg_installed/
 .idea/
 compile_commands.json
 data/
+!data/.gitkeep
+!data/*.md5sum
 *.o
 *.out

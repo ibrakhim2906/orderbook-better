@@ -1,0 +1,36 @@
+name: orderbook
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  CMAKE_GENERATOR: Ninja
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: download-toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake ccache g++-13
+
+      - uses: hendrikmuhs/ccache-action@v1
+        with:
+          key: ${{ github.job }}
+
+      - name: vcpkg
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg "$HOME/vcpkg"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: build-and-test
+        run: ./run.sh test
+
