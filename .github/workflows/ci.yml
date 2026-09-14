@@ -28,7 +28,7 @@ jobs:
 
       - name: vcpkg
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$HOME/vcpkg"
+          git clone https://github.com/microsoft/vcpkg "$HOME/vcpkg"
           "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
 
       - name: build-and-test
