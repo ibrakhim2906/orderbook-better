@@ -18,7 +18,8 @@ target_link_libraries(app PRIVATE orderbook_core)
 
 # ---- tests
 find_package(GTest CONFIG REQUIRED)
-add_executable(tests tests/test_main.cpp)
+add_executable(tests tests/test_main.cpp
+        tests/test_types.cpp)
 target_link_libraries(tests PRIVATE orderbook_core GTest::gtest GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(tests)
