@@ -4,6 +4,7 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 #include <optional>
 #include <orderbook/types.hpp>
@@ -18,6 +19,7 @@ namespace orderbook {
         std::optional<Price> bestAsk() const;
         Quantity quantityAt(Side side, Price price) const;
         std::size_t liveOrderCount() const;
+        std::string checkInvariants() const;
 
     private:
         struct Level {
@@ -25,6 +27,7 @@ namespace orderbook {
             Quantity totalQuantity;
             OrderPoolIndex head;
             OrderPoolIndex tail;
+            Side side;
         };
 
         std::vector<Order> orders_;
@@ -36,5 +39,9 @@ namespace orderbook {
         std::map<Price, LevelIndex> asks_;
 
         LevelIndex findOrCreateLevel(Side side, Price price);
+        void unlinkOrder(OrderPoolIndex slot);
+        void restOrder(OrderId id, Side side, Price price, Quantity quantity);
+        bool crosses(Side incomingSide, Price incomingPrice) const;
+
     };
 }

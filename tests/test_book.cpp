@@ -2,13 +2,17 @@
 #include <orderbook/book.hpp>
 #include <vector>
 
+using namespace orderbook;
+
 TEST(Book, ConstructAndAcceptCommands) {
-    orderbook::Book book;
-    std::vector<orderbook::Fill> fills;
-    orderbook::Command cmd{};
-    cmd.type = orderbook::CommandType::Add;
+    Book book;
+    std::vector<Fill> fills;
+    Command cmd{};
+    cmd.type = CommandType::Add;
     book.apply(cmd, fills);
     EXPECT_TRUE(fills.empty());
+
+    EXPECT_EQ(book.checkInvariants(), "");
 }
 
 
