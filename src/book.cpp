@@ -3,11 +3,11 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <algorithm>
 
 namespace orderbook {
 
 void Book::apply(const Command &command, std::vector<Fill> &out) {
-    (void)out;
     switch (command.type) {
     case CommandType::Add: {
         // reject malformed
@@ -16,7 +16,33 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         if (byId_.contains(command.orderId))
             break;
 
-        Quantity remaining = 
+        Quantity remaining = command.quantity;
+
+        while (remaining > 0 && crosses(command.side, command.price)) {
+            LevelIndex levelIdx = (command.side == Side::Buy) ?
+                            asks_.begin()->second :
+                            bids_.begin()->second;
+
+            OrderPoolIndex restingIdx = levels_[levelIdx].head;
+            Order& resting = orders_[restingIdx];
+
+            Quantity traded = std::min(remaining, resting.remainingQuantity);
+
+            out.push_back(Fill{
+                .aggressorId = command.orderId,
+                .restingId = resting.orderId,
+                .price = levels_[resting.levelIdx].price,
+                .quantity = traded
+            });
+
+            remaining -= traded;
+            if (traded == resting.remainingQuantity) {
+                unlinkOrder(resting.orderId);
+            } else {
+                resting.remainingQuantity -= traded;
+                levels_[levelIdx].totalQuantity -= traded;
+            }
+        }
 
         restOrder(command.orderId, command.side, command.price,
                   command.quantity);
