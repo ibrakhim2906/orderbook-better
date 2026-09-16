@@ -41,6 +41,7 @@ namespace orderbook {
         LevelIndex findOrCreateLevel(Side side, Price price);
         void unlinkOrder(OrderPoolIndex slot);
         void restOrder(OrderId id, Side side, Price price, Quantity quantity);
+        void submit(OrderId id, Side side, Price price, Quantity quantity, std::vector<Fill>& out);
         bool crosses(Side incomingSide, Price incomingPrice) const;
 
     };

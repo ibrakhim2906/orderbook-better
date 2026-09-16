@@ -1,9 +1,9 @@
 
 #include "orderbook/book.hpp"
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <algorithm>
 
 namespace orderbook {
 
@@ -16,36 +16,7 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         if (byId_.contains(command.orderId))
             break;
 
-        Quantity remaining = command.quantity;
-
-        while (remaining > 0 && crosses(command.side, command.price)) {
-            LevelIndex levelIdx = (command.side == Side::Buy) ?
-                            asks_.begin()->second :
-                            bids_.begin()->second;
-
-            OrderPoolIndex restingIdx = levels_[levelIdx].head;
-            Order& resting = orders_[restingIdx];
-
-            Quantity traded = std::min(remaining, resting.remainingQuantity);
-
-            out.push_back(Fill{
-                .aggressorId = command.orderId,
-                .restingId = resting.orderId,
-                .price = levels_[resting.levelIdx].price,
-                .quantity = traded
-            });
-
-            remaining -= traded;
-            if (traded == resting.remainingQuantity) {
-                unlinkOrder(resting.orderId);
-            } else {
-                resting.remainingQuantity -= traded;
-                levels_[levelIdx].totalQuantity -= traded;
-            }
-        }
-
-        restOrder(command.orderId, command.side, command.price,
-                  command.quantity);
+        submit(command.orderId, command.side, command.price, command.quantity, out);
 
         break;
     }
@@ -72,8 +43,18 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         break;
     }
 
-    case CommandType::Replace:
+    case CommandType::Replace: {
+        auto it = byId_.find(command.orderId);
+        if (it == byId_.end()) break;
+        if (command.quantity==0) break;
+        if (byId_.contains(command.newOrderId)) break;
+
+        OrderPoolIndex slot{it->second};
+        Side side = levels_[orders_[slot].levelIdx].side;
+        unlinkOrder(slot);
+        submit(command.newOrderId, side, command.price, command.quantity, out);
         break;
+    }
     }
 }
 
@@ -189,6 +170,42 @@ void Book::restOrder(OrderId id, Side side, Price price, Quantity quantity) {
 
     level.totalQuantity += quantity;
     byId_.emplace(id, slot);
+}
+
+void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity, std::vector<Fill>& out) {
+    Quantity remaining = quantity;
+
+    while (remaining > 0 && crosses(side, price)) {
+        LevelIndex levelIdx = (side == Side::Buy) ?
+                        asks_.begin()->second :
+                        bids_.begin()->second;
+
+        OrderPoolIndex restingIdx = levels_[levelIdx].head;
+        Order& resting = orders_[restingIdx];
+
+        Quantity traded = std::min(remaining, resting.remainingQuantity);
+
+        out.push_back(Fill{
+            .aggressorId = orderId,
+            .restingId = resting.orderId,
+            .price = levels_[resting.levelIdx].price,
+            .quantity = traded
+        });
+
+        remaining -= traded;
+        if (traded == resting.remainingQuantity) {
+            unlinkOrder(restingIdx);
+        } else {
+            resting.remainingQuantity -= traded;
+            levels_[levelIdx].totalQuantity -= traded;
+        }
+    }
+
+    if (remaining > 0) {
+        restOrder(orderId, side, price,
+                  remaining);
+    }
+
 }
 
 std::string Book::checkInvariants() const {
