@@ -23,6 +23,12 @@ enum class CommandType : uint8_t {
     Replace,
 };
 
+enum class TimeInForce : uint8_t {
+    DAY,
+    IOC,
+    FOK,
+};
+
 struct Command {
     OrderId orderId;
     OrderId newOrderId;
@@ -31,6 +37,7 @@ struct Command {
     Quantity quantity;
     CommandType type;
     Side side;
+    TimeInForce timeInForce;
 };
 
 struct Order {

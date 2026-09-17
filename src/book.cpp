@@ -16,7 +16,7 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         if (byId_.contains(command.orderId))
             break;
 
-        submit(command.orderId, command.side, command.price, command.quantity, out);
+        submit(command.orderId, command.side, command.price, command.quantity, command.timeInForce, out);
 
         break;
     }
@@ -52,7 +52,7 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         OrderPoolIndex slot{it->second};
         Side side = levels_[orders_[slot].levelIdx].side;
         unlinkOrder(slot);
-        submit(command.newOrderId, side, command.price, command.quantity, out);
+        submit(command.newOrderId, side, command.price, command.quantity, TimeInForce::DAY,out);
         break;
     }
     }
@@ -172,7 +172,7 @@ void Book::restOrder(OrderId id, Side side, Price price, Quantity quantity) {
     byId_.emplace(id, slot);
 }
 
-void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity, std::vector<Fill>& out) {
+void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity,TimeInForce timeInForce, std::vector<Fill>& out) {
     Quantity remaining = quantity;
 
     while (remaining > 0 && crosses(side, price)) {
@@ -201,7 +201,7 @@ void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity, st
         }
     }
 
-    if (remaining > 0) {
+    if (remaining > 0 && timeInForce == TimeInForce::DAY) {
         restOrder(orderId, side, price,
                   remaining);
     }

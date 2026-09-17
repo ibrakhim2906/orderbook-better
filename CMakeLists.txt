@@ -25,6 +25,7 @@ add_executable(tests tests/test_main.cpp
         tests/test_cancel_reduce.cpp
         tests/test_match.cpp
         tests/test_replace.cpp
+        tests/test_ioc.cpp
 )
 target_link_libraries(tests PRIVATE orderbook_core GTest::gtest GTest::gtest_main)
 include(GoogleTest)
