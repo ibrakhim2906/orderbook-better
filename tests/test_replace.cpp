@@ -1,44 +1,9 @@
 #include <gtest/gtest.h>
 #include <orderbook/book.hpp>
+#include <utils/helpers.hpp>
 
 using namespace orderbook;
-
-static Command add(OrderId id, Side side, Price price, Quantity quantity) {
-    Command c{};
-    c.orderId = id;
-    c.side = side;
-    c.price = price;
-    c.quantity = quantity;
-    c.type = CommandType::Add;
-    return c;
-}
-
-/*
-static Command cancel(OrderId id) {
-    Command c{};
-    c.orderId = id;
-    c.type = CommandType::Cancel;
-    return c;
-}
-
-static Command reduce(OrderId id, Quantity quantity) {
-    Command c{};
-    c.orderId = id;
-    c.quantity = quantity;
-    c.type = CommandType::Reduce;
-    return c;
-}
-*/
-
-static Command replace(OrderId orderId, OrderId newOrderId, Price price, Quantity quantity) {
-    Command c{};
-    c.orderId = orderId;
-    c.newOrderId = newOrderId;
-    c.price = price;
-    c.quantity = quantity;
-    c.type = CommandType::Replace;
-    return c;
-}
+using namespace orderbook::test;
 
 TEST(Replace, LosesTimePriority) {
     Book b;
@@ -57,7 +22,7 @@ TEST(Replace, CrossingPriceMatches) {
     Book b;
     std::vector<Fill> f;
     b.apply(add(1, Side::Buy, 14500, 100), f);
-    b.apply(add(2, Side::Sell, 15000, 100) ,f);
+    b.apply(add(2, Side::Sell, 15000, 100), f);
     b.apply(replace(1, 3, 15100, 80), f);
 
     EXPECT_EQ(b.liveOrderCount(), 1u);
@@ -71,7 +36,6 @@ TEST(Replace, CrossingPriceMatches) {
 
     EXPECT_EQ(b.checkInvariants(), "");
 }
-
 
 TEST(Replace, UnknownIdIsIgnored) {
     Book b;

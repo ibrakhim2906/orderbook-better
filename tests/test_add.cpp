@@ -1,18 +1,9 @@
 #include <gtest/gtest.h>
 #include <orderbook/book.hpp>
-
+#include <utils/helpers.hpp>
 
 using namespace orderbook;
-
-static Command add(OrderId id, Side side, Price price, Quantity quantity) {
-    Command c{};
-    c.orderId = id;
-    c.side = side;
-    c.price = price;
-    c.quantity = quantity;
-    c.type = CommandType::Add;
-    return c;
-}
+using namespace orderbook::test;
 
 TEST(Add, RestsOnEmptyBook) {
     Book b; std::vector<Fill> f;
