@@ -26,7 +26,10 @@ add_executable(tests tests/test_main.cpp
         tests/test_match.cpp
         tests/test_replace.cpp
         tests/test_ioc.cpp
+        tests/test_fok.cpp
+        tests/utils/helpers.hpp
 )
+target_include_directories(tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 target_link_libraries(tests PRIVATE orderbook_core GTest::gtest GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(tests)

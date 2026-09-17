@@ -44,5 +44,6 @@ class Book {
     void submit(OrderId id, Side side, Price price, Quantity quantity,
                 TimeInForce timeInForce, std::vector<Fill> &out);
     bool crosses(Side incomingSide, Price incomingPrice) const;
+    Quantity availableAgainst(Side side, Price price, Quantity needed) const;
 };
 } // namespace orderbook

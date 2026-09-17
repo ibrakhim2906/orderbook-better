@@ -16,7 +16,8 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         if (byId_.contains(command.orderId))
             break;
 
-        submit(command.orderId, command.side, command.price, command.quantity, command.timeInForce, out);
+        submit(command.orderId, command.side, command.price, command.quantity,
+               command.timeInForce, out);
 
         break;
     }
@@ -45,14 +46,18 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
 
     case CommandType::Replace: {
         auto it = byId_.find(command.orderId);
-        if (it == byId_.end()) break;
-        if (command.quantity==0) break;
-        if (byId_.contains(command.newOrderId)) break;
+        if (it == byId_.end())
+            break;
+        if (command.quantity == 0)
+            break;
+        if (byId_.contains(command.newOrderId))
+            break;
 
         OrderPoolIndex slot{it->second};
         Side side = levels_[orders_[slot].levelIdx].side;
         unlinkOrder(slot);
-        submit(command.newOrderId, side, command.price, command.quantity, TimeInForce::DAY,out);
+        submit(command.newOrderId, side, command.price, command.quantity,
+               TimeInForce::DAY, out);
         break;
     }
     }
@@ -172,25 +177,29 @@ void Book::restOrder(OrderId id, Side side, Price price, Quantity quantity) {
     byId_.emplace(id, slot);
 }
 
-void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity,TimeInForce timeInForce, std::vector<Fill>& out) {
+void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity,
+                  TimeInForce timeInForce, std::vector<Fill> &out) {
+    // handle FOK orders
+    if (timeInForce == TimeInForce::FOK &&
+        availableAgainst(side, price, quantity) < quantity) {
+        return;
+    }
+
     Quantity remaining = quantity;
 
     while (remaining > 0 && crosses(side, price)) {
-        LevelIndex levelIdx = (side == Side::Buy) ?
-                        asks_.begin()->second :
-                        bids_.begin()->second;
+        LevelIndex levelIdx =
+            (side == Side::Buy) ? asks_.begin()->second : bids_.begin()->second;
 
         OrderPoolIndex restingIdx = levels_[levelIdx].head;
-        Order& resting = orders_[restingIdx];
+        Order &resting = orders_[restingIdx];
 
         Quantity traded = std::min(remaining, resting.remainingQuantity);
 
-        out.push_back(Fill{
-            .aggressorId = orderId,
-            .restingId = resting.orderId,
-            .price = levels_[resting.levelIdx].price,
-            .quantity = traded
-        });
+        out.push_back(Fill{.aggressorId = orderId,
+                           .restingId = resting.orderId,
+                           .price = levels_[resting.levelIdx].price,
+                           .quantity = traded});
 
         remaining -= traded;
         if (traded == resting.remainingQuantity) {
@@ -202,10 +211,8 @@ void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity,Tim
     }
 
     if (remaining > 0 && timeInForce == TimeInForce::DAY) {
-        restOrder(orderId, side, price,
-                  remaining);
+        restOrder(orderId, side, price, remaining);
     }
-
 }
 
 std::string Book::checkInvariants() const {
@@ -323,4 +330,27 @@ bool Book::crosses(Side incomingSide, Price incomingPrice) const {
     return false;
 }
 
+Quantity Book::availableAgainst(Side side, Price price, Quantity needed) const {
+    Quantity cur = 0;
+
+    if (side == Side::Buy) {
+        for (const auto &[levelPrice, levelIdx] : asks_) {
+            if (levelPrice > price)
+                break;
+            cur += levels_[levelIdx].totalQuantity;
+            if (cur > needed)
+                return cur;
+        }
+    } else {
+        for (const auto &[levelPrice, levelIdx] : bids_) {
+            if (levelPrice > price)
+                break;
+            cur += levels_[levelIdx].totalQuantity;
+            if (cur > needed)
+                return cur;
+        }
+    }
+
+    return cur;
+}
 } // namespace orderbook
