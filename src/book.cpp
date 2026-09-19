@@ -23,8 +23,9 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
     }
     case CommandType::Cancel: {
         auto it = byId_.find(command.orderId);
-        if (it == byId_.end())
+        if (it == byId_.end()) {
             return;
+        }
         unlinkOrder(it->second);
         break;
     }
@@ -61,6 +62,7 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         break;
     }
     }
+
 }
 
 std::optional<Price> Book::bestBid() const {

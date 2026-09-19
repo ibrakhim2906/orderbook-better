@@ -29,6 +29,7 @@ class Book {
         Side side;
     };
 
+
     std::vector<Order> orders_;
     std::vector<Level> levels_;
 
