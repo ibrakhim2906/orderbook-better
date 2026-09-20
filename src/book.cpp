@@ -5,7 +5,9 @@
 
 namespace orderbook {
 
-Book::Book(std::size_t capacity) {
+Book::Book(Price minPrice, Price maxPrice, std::size_t capacity)
+    : minPrice_(minPrice), maxPrice_(maxPrice),
+      priceSlots_(static_cast<LevelIndex>(maxPrice - minPrice + 1)) {
     orders_.resize(capacity);
     for (std::size_t i = 0; i + 1 < capacity; ++i) {
         orders_[i].next = static_cast<OrderPoolIndex>(i + 1);
@@ -13,11 +15,12 @@ Book::Book(std::size_t capacity) {
     orders_[capacity - 1].next = kNullOrder;
     freeHead_ = 0;
 
-    levels_.assign(2 * kPriceSlots, Level{0, kNullOrder, kNullOrder});
+    levels_.assign(2u * priceSlots_, Level{0, kNullOrder, kNullOrder});
 }
 
 OrderPoolIndex Book::allocSlot() {
-    if (freeHead_ == kNullOrder) return kNullOrder;
+    if (freeHead_ == kNullOrder)
+        return kNullOrder;
     OrderPoolIndex slot = freeHead_;
     freeHead_ = orders_[slot].next;
     return slot;
@@ -29,22 +32,25 @@ void Book::freeSlot(OrderPoolIndex slot) {
 }
 
 LevelIndex Book::indexFor(Side side, Price price) const {
-    if (price < kMinPrice || price > kMaxPrice) return kNullLevel;
-    auto i = static_cast<LevelIndex>(price - kMinPrice);
-    return (side == Side::Buy) ? i : i + static_cast<LevelIndex>(kPriceSlots);
+    if (price < minPrice_ || price > maxPrice_)
+        return kNullLevel;
+    auto i = static_cast<LevelIndex>(price - minPrice_);
+    return (side == Side::Buy) ? i : i + priceSlots_;
 }
 
 Price Book::priceOf(LevelIndex idx) const {
-    auto i = (idx >= kPriceSlots) ? idx - static_cast<LevelIndex>(kPriceSlots) : idx;
-    return kMinPrice + static_cast<Price>(i);
+    auto i = (idx >= priceSlots_) ? idx - priceSlots_ : idx;
+    return minPrice_ + static_cast<Price>(i);
 }
 
 void Book::apply(const Command &command, std::vector<Fill> &out) {
     switch (command.type) {
 
     case CommandType::Add: {
-        if (command.quantity == 0) break;
-        if (byId_.find(command.orderId) != kNullOrder) break;
+        if (command.quantity == 0)
+            break;
+        if (byId_.find(command.orderId) != kNullOrder)
+            break;
         submit(command.orderId, command.side, command.price, command.quantity,
                command.timeInForce, out);
         break;
@@ -52,15 +58,13 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
 
     case CommandType::Cancel: {
         OrderPoolIndex slot = byId_.find(command.orderId);
-        if (slot == kNullOrder) break;
+        if (slot == kNullOrder)
+            break;
         unlinkOrder(slot);
         break;
     }
 
-    case CommandType::Execute:
-        break;
-
-    case CommandType::Reduce: {
+    case CommandType::Execute: {
         OrderPoolIndex slot = byId_.find(command.orderId);
         if (slot == kNullOrder) break;
         Order &order = orders_[slot];
@@ -72,14 +76,31 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
         levels_[order.levelIdx].totalQuantity -= command.quantity;
         break;
     }
+
+    case CommandType::Reduce: {
+        OrderPoolIndex slot = byId_.find(command.orderId);
+        if (slot == kNullOrder)
+            break;
+        Order &order = orders_[slot];
+        if (command.quantity >= order.remainingQuantity) {
+            unlinkOrder(slot);
+            break;
+        }
+        order.remainingQuantity -= command.quantity;
+        levels_[order.levelIdx].totalQuantity -= command.quantity;
+        break;
+    }
     case CommandType::Replace: {
         OrderPoolIndex slot = byId_.find(command.orderId);
-        if (slot == kNullOrder) break;
-        if (command.quantity == 0) break;
-        if (byId_.find(command.newOrderId) != kNullOrder) break;
+        if (slot == kNullOrder)
+            break;
+        if (command.quantity == 0)
+            break;
+        if (byId_.find(command.newOrderId) != kNullOrder)
+            break;
 
         LevelIndex li = orders_[slot].levelIdx;
-        Side side = (li >= kPriceSlots) ? Side::Sell : Side::Buy;
+        Side side = (li >= priceSlots_) ? Side::Sell : Side::Buy;
 
         unlinkOrder(slot);
         submit(command.newOrderId, side, command.price, command.quantity,
@@ -90,18 +111,21 @@ void Book::apply(const Command &command, std::vector<Fill> &out) {
 }
 
 std::optional<Price> Book::bestBid() const {
-    if (bestBidIdx_ == kNullLevel) return std::nullopt;
+    if (bestBidIdx_ == kNullLevel)
+        return std::nullopt;
     return priceOf(bestBidIdx_);
 }
 
 std::optional<Price> Book::bestAsk() const {
-    if (bestAskIdx_ == kNullLevel) return std::nullopt;
+    if (bestAskIdx_ == kNullLevel)
+        return std::nullopt;
     return priceOf(bestAskIdx_);
 }
 
 Quantity Book::quantityAt(Side side, Price price) const {
     LevelIndex li = indexFor(side, price);
-    if (li == kNullLevel) return 0;
+    if (li == kNullLevel)
+        return 0;
     return levels_[li].totalQuantity;
 }
 
@@ -129,17 +153,23 @@ void Book::unlinkOrder(OrderPoolIndex slot) {
 
     // level emptied: if it was the best on its side, find the next one
     if (level.head == kNullOrder) {
-        const bool isBid = (li < kPriceSlots);
+        const bool isBid = (li < priceSlots_);
         if (isBid && li == bestBidIdx_) {
             bestBidIdx_ = kNullLevel;
-            for (LevelIndex i = li; i-- > 0;) {          // scan down
-                if (levels_[i].head != kNullOrder) { bestBidIdx_ = i; break; }
+            for (LevelIndex i = li; i-- > 0;) { // scan down
+                if (levels_[i].head != kNullOrder) {
+                    bestBidIdx_ = i;
+                    break;
+                }
             }
         } else if (!isBid && li == bestAskIdx_) {
             bestAskIdx_ = kNullLevel;
-            const auto end = static_cast<LevelIndex>(2 * kPriceSlots);
-            for (LevelIndex i = li + 1; i < end; ++i) {  // scan up
-                if (levels_[i].head != kNullOrder) { bestAskIdx_ = i; break; }
+            const auto end = static_cast<LevelIndex>(2 * priceSlots_);
+            for (LevelIndex i = li + 1; i < end; ++i) { // scan up
+                if (levels_[i].head != kNullOrder) {
+                    bestAskIdx_ = i;
+                    break;
+                }
             }
         }
     }
@@ -149,10 +179,12 @@ void Book::unlinkOrder(OrderPoolIndex slot) {
 
 void Book::restOrder(OrderId id, Side side, Price price, Quantity quantity) {
     LevelIndex li = indexFor(side, price);
-    if (li == kNullLevel) return;          // outside the supported price band
+    if (li == kNullLevel)
+        return; // outside the supported price band
 
     OrderPoolIndex slot = allocSlot();
-    if (slot == kNullOrder) return;        // pool exhausted
+    if (slot == kNullOrder)
+        return; // pool exhausted
 
     orders_[slot] = Order{.orderId = id,
                           .remainingQuantity = quantity,
@@ -175,9 +207,11 @@ void Book::restOrder(OrderId id, Side side, Price price, Quantity quantity) {
 
     // maintain the cached best: higher index is better for bids, lower for asks
     if (side == Side::Buy) {
-        if (bestBidIdx_ == kNullLevel || li > bestBidIdx_) bestBidIdx_ = li;
+        if (bestBidIdx_ == kNullLevel || li > bestBidIdx_)
+            bestBidIdx_ = li;
     } else {
-        if (bestAskIdx_ == kNullLevel || li < bestAskIdx_) bestAskIdx_ = li;
+        if (bestAskIdx_ == kNullLevel || li < bestAskIdx_)
+            bestAskIdx_ = li;
     }
 }
 
@@ -218,30 +252,38 @@ void Book::submit(OrderId orderId, Side side, Price price, Quantity quantity,
 
 bool Book::crosses(Side incomingSide, Price incomingPrice) const {
     if (incomingSide == Side::Buy) {
-        if (auto ask = bestAsk()) return incomingPrice >= ask.value();
+        if (auto ask = bestAsk())
+            return incomingPrice >= ask.value();
     } else {
-        if (auto bid = bestBid()) return incomingPrice <= bid.value();
+        if (auto bid = bestBid())
+            return incomingPrice <= bid.value();
     }
     return false;
 }
 
 Quantity Book::availableAgainst(Side side, Price price, Quantity needed) const {
     Quantity total = 0;
-    const auto end = static_cast<LevelIndex>(2 * kPriceSlots);
+    const auto end = static_cast<LevelIndex>(2 * priceSlots_);
 
     if (side == Side::Buy) {
-        if (bestAskIdx_ == kNullLevel) return 0;
+        if (bestAskIdx_ == kNullLevel)
+            return 0;
         for (LevelIndex i = bestAskIdx_; i < end; ++i) {
-            if (priceOf(i) > price) break;          // no longer crossing
+            if (priceOf(i) > price)
+                break; // no longer crossing
             total += levels_[i].totalQuantity;
-            if (total >= needed) return total;
+            if (total >= needed)
+                return total;
         }
     } else {
-        if (bestBidIdx_ == kNullLevel) return 0;
+        if (bestBidIdx_ == kNullLevel)
+            return 0;
         for (LevelIndex i = bestBidIdx_ + 1; i-- > 0;) {
-            if (priceOf(i) < price) break;
+            if (priceOf(i) < price)
+                break;
             total += levels_[i].totalQuantity;
-            if (total >= needed) return total;
+            if (total >= needed)
+                return total;
         }
     }
     return total;
@@ -249,11 +291,11 @@ Quantity Book::availableAgainst(Side side, Price price, Quantity needed) const {
 
 std::string Book::checkInvariants() const {
     std::size_t seen = 0;
-    const auto end = static_cast<LevelIndex>(2 * kPriceSlots);
+    const auto end = static_cast<LevelIndex>(2 * priceSlots_);
 
     for (LevelIndex li = 0; li < end; ++li) {
         const Level &level = levels_[li];
-        const bool isBid = (li < kPriceSlots);
+        const bool isBid = (li < priceSlots_);
         const char *label = isBid ? "bid" : "ask";
 
         if (level.head == kNullOrder) {
@@ -279,7 +321,8 @@ std::string Book::checkInvariants() const {
             OrderPoolIndex mapped = byId_.find(order.orderId);
             if (mapped == kNullOrder) {
                 return std::string(label) + " order " +
-                       std::to_string(order.orderId) + " in queue but not in byId_";
+                       std::to_string(order.orderId) +
+                       " in queue but not in byId_";
             }
             if (mapped != cur) {
                 return std::string(label) + " byId_ points at slot " +

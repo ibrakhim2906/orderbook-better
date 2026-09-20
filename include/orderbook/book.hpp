@@ -11,7 +11,8 @@ namespace orderbook {
 
 class Book {
 public:
-    explicit Book(std::size_t capacity = 16384);
+    explicit Book(Price minPrice = 16000, Price maxPrice = 24000,
+                  std::size_t capacity = 16384);
 
     void apply(const Command &command, std::vector<Fill> &out);
 
@@ -28,8 +29,10 @@ private:
         OrderPoolIndex tail;
     };
 
-    // 2 * kPriceSlots entries: bids occupy [0, N), asks [N, 2N).
-    // The index encodes both price and side, so Order needs only one field.
+    Price       minPrice_;
+    Price       maxPrice_;
+    LevelIndex  priceSlots_;
+
     std::vector<Level> levels_;
 
     LevelIndex bestBidIdx_ = kNullLevel;

@@ -5,10 +5,6 @@
 
 namespace orderbook {
 
-// Open-addressed hash table: OrderId -> OrderPoolIndex.
-// Linear probing, power-of-two capacity, tombstone deletion.
-// Unlike std::unordered_map, there is no per-entry heap allocation and no
-// pointer chasing: a probe walks contiguous memory.
 class IdMap {
   public:
     explicit IdMap(std::size_t capacityPow2 = 1u << 15) {
