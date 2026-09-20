@@ -31,6 +31,7 @@ add_executable(tests tests/test_main.cpp
         tests/test_ioc.cpp
         tests/test_fok.cpp
         tests/utils/helpers.hpp
+        tests/test_fuzz.cpp
         tests/test_itch.cpp
 )
 target_include_directories(tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
