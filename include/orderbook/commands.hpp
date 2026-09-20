@@ -40,4 +40,12 @@ inline Command makeReplace(OrderId oldId, OrderId newId, Price price, Quantity q
     return c;
 }
 
+inline Command makeExecute(OrderId id, Quantity qty) {
+    Command c{};
+    c.type = CommandType::Execute;
+    c.orderId = id;
+    c.quantity = qty;
+    return c;
+}
+
 }  // namespace orderbook

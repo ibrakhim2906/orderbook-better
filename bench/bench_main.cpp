@@ -25,7 +25,7 @@ static void BM_ApplyBatch(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        orderbook::Book book;                       // fresh book each pass
+        orderbook::Book book(31900, 32500);                       // fresh book each pass
         std::vector<orderbook::Fill> fills;
         fills.reserve(1000);
         state.ResumeTiming();
