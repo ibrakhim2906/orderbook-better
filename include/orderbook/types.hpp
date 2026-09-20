@@ -3,6 +3,7 @@
 #include <type_traits>
 
 namespace orderbook {
+
 enum class Side : uint8_t { Buy, Sell };
 
 using Price = int32_t;
@@ -12,8 +13,17 @@ using TimeStamp = uint64_t;
 using OrderPoolIndex = uint32_t;
 using LevelIndex = uint32_t;
 
+inline constexpr Price kMinPrice = 16000;
+inline constexpr Price kMaxPrice = 24000;
+inline constexpr std::size_t kPriceSlots =
+    static_cast<std::size_t>(kMaxPrice - kMinPrice+1);
+
+
+
+
 inline constexpr LevelIndex kNullLevel = 0xFFFFFFFFu;
 inline constexpr OrderPoolIndex kNullOrder = 0xFFFFFFFFu;
+inline constexpr std::size_t kNoPrice = 0xFFFFFFFFu;
 
 enum class CommandType : uint8_t {
     Add,

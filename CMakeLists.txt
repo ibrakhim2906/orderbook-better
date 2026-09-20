@@ -8,7 +8,8 @@ message(STATUS "CXX flags: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_bt}}")
 
 # ---- core library
 add_library(orderbook_core STATIC src/book.cpp
-        include/orderbook/commands.hpp)
+        include/orderbook/commands.hpp
+        include/orderbook/idmap.hpp)
 target_include_directories(orderbook_core PUBLIC include)
 target_compile_features(orderbook_core PUBLIC cxx_std_20)
 target_compile_options(orderbook_core PUBLIC -Wall -Wextra -Wpedantic -Werror)
