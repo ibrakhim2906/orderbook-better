@@ -7,6 +7,34 @@
 
 namespace orderbook {
 
+Book::Book(std::size_t capacity) {
+    orders_.resize(capacity);
+
+    for (std::size_t i = 0; i < capacity-1; i++) {
+        orders_[i].next = static_cast<OrderPoolIndex>(i+1);
+    }
+
+    orders_[capacity-1].next = kNullOrder;
+    freeHead_ = 0;
+}
+
+OrderPoolIndex Book::allocSlot() {
+    if (freeHead_ == kNullOrder) {
+        return kNullOrder;
+    }
+
+    OrderPoolIndex slot = freeHead_;
+    freeHead_ = orders_[slot].next;
+    return slot;
+}
+
+void Book::freeSlot(OrderPoolIndex slot) {
+    orders_[slot].next = freeHead_;
+    freeHead_ = slot;
+}
+
+
+
 void Book::apply(const Command &command, std::vector<Fill> &out) {
     switch (command.type) {
     case CommandType::Add: {
@@ -149,16 +177,20 @@ void Book::unlinkOrder(OrderPoolIndex slot) {
             asks_.erase(level.price);
         }
     }
+
+    freeSlot(slot);
 }
 
 void Book::restOrder(OrderId id, Side side, Price price, Quantity quantity) {
     // add order
-    auto slot = static_cast<OrderPoolIndex>(orders_.size());
-    orders_.push_back(Order{.orderId = id,
+    auto slot= allocSlot();
+    if (slot == kNullLevel) return;
+
+    orders_[slot] = Order{.orderId = id,
                             .remainingQuantity = quantity,
                             .next = kNullOrder,
                             .prev = kNullOrder,
-                            .levelIdx = kNullLevel});
+                            .levelIdx = kNullLevel};
 
     // get or create level
     LevelIndex idx = findOrCreateLevel(side, price);
@@ -340,15 +372,15 @@ Quantity Book::availableAgainst(Side side, Price price, Quantity needed) const {
             if (levelPrice > price)
                 break;
             cur += levels_[levelIdx].totalQuantity;
-            if (cur > needed)
+            if (cur >= needed)
                 return cur;
         }
     } else {
         for (const auto &[levelPrice, levelIdx] : bids_) {
-            if (levelPrice > price)
+            if (levelPrice < price)
                 break;
             cur += levels_[levelIdx].totalQuantity;
-            if (cur > needed)
+            if (cur >= needed)
                 return cur;
         }
     }

@@ -12,6 +12,9 @@ namespace orderbook {
 
 class Book {
   public:
+
+    explicit Book(std::size_t capacity = 16384);
+
     void apply(const Command &command, std::vector<Fill> &out);
 
     std::optional<Price> bestBid() const;
@@ -29,6 +32,10 @@ class Book {
         Side side;
     };
 
+    OrderPoolIndex allocSlot();
+    void freeSlot(OrderPoolIndex slot);
+
+    OrderPoolIndex freeHead_ = kNullOrder;
 
     std::vector<Order> orders_;
     std::vector<Level> levels_;
